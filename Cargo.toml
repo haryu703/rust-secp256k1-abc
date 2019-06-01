@@ -1,0 +1,2 @@
+[workspace]
+members = [ "secp256k1-abc-sys" ]
