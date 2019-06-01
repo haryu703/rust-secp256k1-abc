@@ -1,0 +1,9 @@
+[package]
+name = "secp256k1-abc"
+version = "0.1.0"
+authors = ["haryu703"]
+edition = "2018"
+
+[dependencies]
+secp256k1-abc-sys = { path = "../secp256k1-abc-sys/" }
+bitflags = "1.0.4"

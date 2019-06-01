@@ -1,2 +1,2 @@
 [workspace]
-members = [ "secp256k1-abc-sys" ]
+members = [ "secp256k1-abc-sys", "secp256k1-abc" ]
