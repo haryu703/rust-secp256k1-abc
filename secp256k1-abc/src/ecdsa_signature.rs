@@ -75,17 +75,40 @@ impl<'a> ECDSASignature<'a> {
         convert_return(ret, ())
     }
 
-    pub fn sign<F>(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey, nonce_closure: Option<F>) -> Result<Self>
+    pub fn sign_with_nonce_closure<F>(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey, mut nonce_closure: F) -> Result<Self>
         where F: FnMut(Option<&mut [u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 16]>, u32) -> i32 {
         let mut sig = Self::new(ctx);
-        let ret = match nonce_closure {
-            Some(mut f) => {
-                let mut cb = &mut f;
-                let cb = &mut cb;
-                unsafe { secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), Some(nonce_function), cb as *const _ as *const c_void) }
-            },
-            None => unsafe { secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null()) }
+        let mut cb = &mut nonce_closure;
+        let cb = &mut cb;
+        let ret = unsafe {
+            secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), Some(nonce_function), cb as *const _ as *const c_void)
         };
         convert_return(ret, sig)
+    }
+
+    pub fn sign(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey) -> Result<Self> {
+        let mut sig = Self::new(ctx);
+        let ret = unsafe {
+            secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null())
+        };
+        convert_return(ret, sig)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use super::super::ContextFlag;
+
+    #[test]
+    fn sign_verify() {
+        let ctx = Context::new(ContextFlag::SIGN | ContextFlag::VERIFY);
+        let msg = hex!("4f1379111cc4350a52280fca4f21673ec8db83edaa9be0731fd9fe6aa4d63c5e");
+
+        let privkey = PrivateKey::from_array(&ctx, hex!("d7f8f06b9da388bfe1f56c9630090e9f24a48dd1a8d1d5ed059b48117d69f88c"));
+        let pubkey = PublicKey::create(&ctx, &privkey).unwrap();
+
+        let sig = ECDSASignature::sign(&ctx, &msg, &privkey).unwrap();
+        assert!(sig.verify(&msg, &pubkey).is_ok());
     }
 }
