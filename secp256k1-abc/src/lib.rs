@@ -20,6 +20,11 @@ pub use private_key::PrivateKey;
 pub use multiset::MultiSet;
 pub use ecdsa_recoverable_signature::ECDSARecoverableSignature;
 
+#[cfg(test)]
+#[macro_use]
+extern crate hex_literal;
+
+
 bitflags! {
     pub struct ECFlag: u32 {
         const COMPRESSED = SECP256K1_EC_COMPRESSED;

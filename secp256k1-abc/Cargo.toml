@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 secp256k1-abc-sys = { path = "../secp256k1-abc-sys/" }
 bitflags = "1.0.4"
+
+[dev-dependencies]
+hex-literal = "0.2.0"
