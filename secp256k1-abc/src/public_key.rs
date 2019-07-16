@@ -1,12 +1,27 @@
+use std::convert::TryFrom;
 use secp256k1_abc_sys::*;
 use super::context::Context;
 use super::private_key::PrivateKey;
-use super::{Result, ECFlag};
-use super::utils::convert_return;
+use super::{Result, Error, ECFlag};
 
 pub struct PublicKey<'a> {
     pub(crate) raw: secp256k1_pubkey,
     ctx: &'a Context,
+}
+
+impl<'a> TryFrom<&PrivateKey<'a>> for PublicKey<'a> {
+    type Error = Error;
+    fn try_from(seckey: &PrivateKey<'a>) -> Result<Self> {
+        let mut key = Self::new(seckey.ctx);
+        let ret = unsafe {
+            secp256k1_ec_pubkey_create(seckey.ctx.ctx, &mut key.raw, seckey.raw.as_ptr())
+        };
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(key)
+        }
+    }
 }
 
 impl<'a> PublicKey<'a> {
@@ -24,7 +39,11 @@ impl<'a> PublicKey<'a> {
         let ret = unsafe {
             secp256k1_ec_pubkey_parse(ctx.ctx, &mut key.raw, input.as_ptr(), input.len())
         };
-        convert_return(ret, key)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(key)
+        }
     }
 
     pub fn serialize<'b>(&self, output: &'b mut [u8], flags: ECFlag) -> Result<&'b [u8]> {
@@ -32,36 +51,51 @@ impl<'a> PublicKey<'a> {
         let ret = unsafe {
             secp256k1_ec_pubkey_serialize(self.ctx.ctx, output.as_mut_ptr(), &mut outputlen, &self.raw, flags.bits)
         };
-        convert_return(ret, &output[..outputlen])
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(&output[..outputlen])
+        }
     }
 
-    pub fn create(ctx: &'a Context, seckey: &PrivateKey) -> Result<Self> {
-        let mut key = Self::new(ctx);
-        let ret = unsafe {
-            secp256k1_ec_pubkey_create(ctx.ctx, &mut key.raw, seckey.raw.as_ptr())
-        };
-        convert_return(ret, key)
+    pub fn serialize_compressed(&self) -> Result<[u8;33]> {
+        let mut output = [0;33];
+        self.serialize(output.as_mut(), ECFlag::COMPRESSED)?;
+
+        Ok(output)
     }
 
     pub fn negate(&mut self) -> Result<()> {
         let ret = unsafe {
             secp256k1_ec_pubkey_negate(self.ctx.ctx, &mut self.raw)
         };
-        convert_return(ret, ())
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn tweak_add(&mut self, tweak: &[u8; 32]) -> Result<()> {
         let ret = unsafe {
             secp256k1_ec_pubkey_tweak_add(self.ctx.ctx, &mut self.raw, tweak.as_ptr())
         };
-        convert_return(ret, ())
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn tweak_mul(&mut self, tweak: &[u8; 32]) -> Result<()> {
         let ret = unsafe {
             secp256k1_ec_pubkey_tweak_mul(self.ctx.ctx, &mut self.raw, tweak.as_ptr())
         };
-        convert_return(ret, ())
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn combine(ctx: &'a Context, ins: &[PublicKey]) -> Result<Self> {
@@ -70,6 +104,10 @@ impl<'a> PublicKey<'a> {
         let ret = unsafe {
             secp256k1_ec_pubkey_combine(ctx.ctx, &mut key.raw, keys, ins.len())
         };
-        convert_return(ret, key)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(key)
+        }
     }
 }

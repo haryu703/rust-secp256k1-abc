@@ -4,9 +4,9 @@ use secp256k1_abc_sys::*;
 use super::context::Context;
 use super::public_key::PublicKey;
 use super::private_key::PrivateKey;
-use super::{Result, nonce_function};
-use super::utils::convert_return;
+use super::{Result, Error};
 use super::ecdsa_signature::ECDSASignature;
+use super::nonce_function::{nonce_function, NonceClosure};
 
 pub struct ECDSARecoverableSignature<'a> {
     raw: secp256k1_ecdsa_recoverable_signature,
@@ -28,7 +28,11 @@ impl<'a> ECDSARecoverableSignature<'a> {
         let ret = unsafe {
             secp256k1_ecdsa_recoverable_signature_parse_compact(ctx.ctx, &mut sig.raw, input.as_ptr(), recid)
         };
-        convert_return(ret, sig)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(sig)
+        }
     }
 
     pub fn convert(&self) -> Result<ECDSASignature> {
@@ -36,7 +40,11 @@ impl<'a> ECDSARecoverableSignature<'a> {
         let ret = unsafe {
             secp256k1_ecdsa_recoverable_signature_convert(self.ctx.ctx, &mut sig.raw, &self.raw)
         };
-        convert_return(ret, sig)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(sig)
+        }
     }
 
     pub fn serialize_compact(&self) -> Result<([u8; 64], i32)> {
@@ -45,18 +53,33 @@ impl<'a> ECDSARecoverableSignature<'a> {
         let ret = unsafe {
             secp256k1_ecdsa_recoverable_signature_serialize_compact(self.ctx.ctx, output.as_mut_ptr(), &mut recid, &self.raw)
         };
-        convert_return(ret, (output, recid))
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok((output, recid))
+        }
     }
 
     pub fn sign_with_nonce_closure<F>(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey, mut nonce_closure: F) -> Result<Self>
         where F: FnMut(Option<&mut [u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 16]>, u32) -> i32 {
         let mut sig = Self::new(ctx);
-        let mut cb = &mut nonce_closure;
-        let cb = &mut cb;
+        let mut obj: NonceClosure = &mut nonce_closure;
+        let data = &mut obj as *const _ as *const c_void;
         let ret = unsafe {
-            secp256k1_ecdsa_sign_recoverable(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), Some(nonce_function), cb as *const _ as *const c_void)
+            secp256k1_ecdsa_sign_recoverable(
+                ctx.ctx,
+                &mut sig.raw,
+                msg.as_ptr(),
+                seckey.raw.as_ptr(),
+                Some(nonce_function),
+                data
+            )
         };
-        convert_return(ret, sig)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(sig)
+        }
     }
 
     pub fn sign(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey) -> Result<Self> {
@@ -64,7 +87,11 @@ impl<'a> ECDSARecoverableSignature<'a> {
         let ret = unsafe {
             secp256k1_ecdsa_sign_recoverable(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null())
         };
-        convert_return(ret, sig)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(sig)
+        }
     }
 
     pub fn recover(&self, msg: &[u8; 32]) -> Result<PublicKey> {
@@ -72,12 +99,17 @@ impl<'a> ECDSARecoverableSignature<'a> {
         let ret = unsafe {
             secp256k1_ecdsa_recover(self.ctx.ctx, &mut key.raw, &self.raw, msg.as_ptr())
         };
-        convert_return(ret, key)
+        if ret == 0 {
+            Err(Error::SysError)
+        } else {
+            Ok(key)
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::convert::TryFrom;
     use super::*;
     use super::super::ContextFlag;
 
@@ -87,7 +119,7 @@ mod test {
         let msg = hex!("4f1379111cc4350a52280fca4f21673ec8db83edaa9be0731fd9fe6aa4d63c5e");
 
         let privkey = PrivateKey::from_array(&ctx, hex!("d7f8f06b9da388bfe1f56c9630090e9f24a48dd1a8d1d5ed059b48117d69f88c"));
-        let pubkey = PublicKey::create(&ctx, &privkey).unwrap();
+        let pubkey = PublicKey::try_from(&privkey).unwrap();
 
         let sig = ECDSARecoverableSignature::sign(&ctx, &msg, &privkey).unwrap();
         assert!(sig.convert().unwrap().verify(&msg, &pubkey).is_ok());
