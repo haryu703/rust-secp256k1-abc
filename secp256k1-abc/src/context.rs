@@ -40,28 +40,38 @@ extern "C" fn error_callback(message: *const c_char, data: *mut c_void) {
     (*closure)(message);
 }
 
-pub struct Context {
+pub struct Context<'a> {
     pub(crate) ctx: *mut secp256k1_context,
+    illegal_closure: Option<IllegalClosure<'a>>,
+    error_closure: Option<ErrorClosure<'a>>,
 }
 
-impl Clone for Context {
+impl<'a> Clone for Context<'a> {
     fn clone(&self) -> Self {
         Context {
             ctx: unsafe { secp256k1_context_clone(self.ctx) },
+            illegal_closure: None,
+            error_closure: None,
         }
     }
 }
 
-impl Drop for Context {
+impl<'a> Drop for Context<'a> {
     fn drop(&mut self) {
-        unsafe { secp256k1_context_destroy(self.ctx) };
+        unsafe {
+            secp256k1_context_destroy(self.ctx);
+            self.set_illegal_callback(None, std::ptr::null());
+            self.set_error_callback(None, std::ptr::null());
+        };
     }
 }
 
-impl Context {
+impl<'a> Context<'a> {
     pub fn new(flags: ContextFlag) -> Self {
         Context {
             ctx: unsafe { secp256k1_context_create(flags.bits) },
+            illegal_closure: None,
+            error_closure: None,
         }
     }
 
@@ -76,17 +86,35 @@ impl Context {
         }
     }
 
-    pub fn set_illegal_closure(&mut self, cb: &mut IllegalClosure) {
-        let p = cb as *mut _ as *mut c_void;
+    pub unsafe fn set_illegal_callback(
+        &self,
+        fun: Option<unsafe extern "C" fn(message: *const c_char, data: *mut c_void)>,
+        data: *const c_void,
+    ) {
+        secp256k1_abc_sys::secp256k1_context_set_illegal_callback(self.ctx, fun, data)
+    }
+
+    pub unsafe fn set_error_callback(
+        &self,
+        fun: Option<unsafe extern "C" fn(message: *const c_char, data: *mut c_void)>,
+        data: *const c_void,
+    ) {
+        secp256k1_abc_sys::secp256k1_context_set_error_callback(self.ctx, fun, data)
+    }
+
+    pub fn set_illegal_closure(&mut self, cb: IllegalClosure<'a>) {
+        self.illegal_closure = Some(cb);
+        let p = &mut self.illegal_closure as *mut _ as *mut c_void;
         unsafe {
-            secp256k1_abc_sys::secp256k1_context_set_illegal_callback(self.ctx, Some(illegal_callback), p)
+            self.set_illegal_callback(Some(illegal_callback), p)
         }
     }
 
-    pub fn set_error_closure(&mut self, cb: &mut ErrorClosure) {
-        let p = cb as *mut _ as *mut c_void;
+    pub fn set_error_closure(&mut self, cb: ErrorClosure<'a>) {
+        self.error_closure = Some(cb);
+        let p = &mut self.error_closure as *mut _ as *mut c_void;
         unsafe {
-            secp256k1_abc_sys::secp256k1_context_set_error_callback(self.ctx, Some(error_callback), p)
+            self.set_error_callback(Some(error_callback), p)
         }
     }
 }
@@ -96,24 +124,25 @@ mod test {
     use super::*;
     use crate::*;
     use std::convert::TryFrom;
+    use std::sync::atomic::{AtomicI32, Ordering};
 
     #[test]
     fn illegal_callback() {
-        let mut verify = Context::new(ContextFlag::VERIFY);
-
-        let mut ecount = 0;
+        let ecount = AtomicI32::new(0);
         let mut cb = |msg: std::result::Result<&str, Utf8Error>| {
             assert_eq!(msg.is_ok(), true);
-            ecount += 1;
+            ecount.fetch_add(1, Ordering::Relaxed);
         };
 
-        let mut ref_cb = &mut cb as IllegalClosure;
+        let mut verify = Context::new(ContextFlag::VERIFY);
 
-        verify.set_illegal_closure(&mut ref_cb);
+        let ref_cb = &mut cb as IllegalClosure;
+
+        verify.set_illegal_closure(ref_cb);
         let privkey = PrivateKey::from_array(&verify, hex!("d7f8f06b9da388bfe1f56c9630090e9f24a48dd1a8d1d5ed059b48117d69f88c"));
         let pubkey = PublicKey::try_from(&privkey);
 
         assert_eq!(pubkey.is_err(), true);
-        assert_eq!(ecount, 1);
+        assert_eq!(ecount.load(Ordering::Relaxed), 1);
     }
 }

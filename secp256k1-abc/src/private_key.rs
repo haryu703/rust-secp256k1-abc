@@ -3,13 +3,13 @@ use super::context::Context;
 use super::{Result, Error};
 
 #[derive(Clone)]
-pub struct PrivateKey<'a> {
+pub struct PrivateKey<'a, 'b> {
     pub(crate) raw: [u8; 32],
-    pub(crate) ctx: &'a Context,
+    pub(crate) ctx: &'a Context<'b>,
 }
 
-impl<'a> PrivateKey<'a> {
-    pub fn from_array(ctx: &'a Context, raw: [u8; 32]) -> Self {
+impl<'a, 'b> PrivateKey<'a, 'b> {
+    pub fn from_array(ctx: &'a Context<'b>, raw: [u8; 32]) -> Self {
         PrivateKey {
             raw,
             ctx,

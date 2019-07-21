@@ -7,13 +7,13 @@ use super::private_key::PrivateKey;
 use super::{Result, Error};
 use super::nonce_function::{nonce_function, NonceClosure};
 
-pub struct ECDSASignature<'a> {
+pub struct ECDSASignature<'a, 'b> {
     pub(crate) raw: secp256k1_ecdsa_signature,
-    ctx: &'a Context,
+    ctx: &'a Context<'b>,
 }
 
-impl<'a> ECDSASignature<'a> {
-    pub(crate) fn new(ctx: &'a Context) -> Self {
+impl<'a, 'b> ECDSASignature<'a, 'b> {
+    pub(crate) fn new(ctx: &'a Context<'b>) -> Self {
         ECDSASignature {
             raw: secp256k1_ecdsa_signature {
                 _bindgen_opaque_blob: [0; 64],
@@ -22,7 +22,7 @@ impl<'a> ECDSASignature<'a> {
         }
     }
 
-    pub fn parse_compact(ctx: &'a Context, input: &[u8; 64]) -> Result<Self> {
+    pub fn parse_compact(ctx: &'a Context<'b>, input: &[u8; 64]) -> Result<Self> {
         let mut sig = Self::new(ctx);
         let ret = unsafe {
             secp256k1_ecdsa_signature_parse_compact(ctx.ctx, &mut sig.raw, input.as_ptr())
@@ -34,7 +34,7 @@ impl<'a> ECDSASignature<'a> {
         }
     }
 
-    pub fn parse_der(ctx: &'a Context, input: &[u8]) -> Result<(Self)> {
+    pub fn parse_der(ctx: &'a Context<'b>, input: &[u8]) -> Result<(Self)> {
         let mut sig = Self::new(ctx);
         let ret = unsafe {
             secp256k1_ecdsa_signature_parse_der(ctx.ctx, &mut sig.raw, input.as_ptr(), input.len())
@@ -46,7 +46,7 @@ impl<'a> ECDSASignature<'a> {
         }
     }
 
-    pub fn serialize_der<'b>(&self, output: &'b mut [u8]) -> Result<&'b [u8]> {
+    pub fn serialize_der<'c>(&self, output: &'c mut [u8]) -> Result<&'c [u8]> {
         let mut outputlen = output.len();
         let ret = unsafe {
             secp256k1_ecdsa_signature_serialize_der(self.ctx.ctx, output.as_mut_ptr(), &mut outputlen, &self.raw)
@@ -100,7 +100,7 @@ impl<'a> ECDSASignature<'a> {
         }
     }
 
-    pub fn sign_with_nonce_closure<F>(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey, mut nonce_closure: F) -> Result<Self>
+    pub fn sign_with_nonce_closure<F>(ctx: &'a Context<'b>, msg: &[u8; 32], seckey: &PrivateKey, mut nonce_closure: F) -> Result<Self>
         where F: FnMut(Option<&mut [u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 16]>, u32) -> i32 {
         let mut sig = Self::new(ctx);
         let mut obj: NonceClosure = &mut nonce_closure;
@@ -122,7 +122,7 @@ impl<'a> ECDSASignature<'a> {
         }
     }
 
-    pub fn sign(ctx: &'a Context, msg: &[u8; 32], seckey: &PrivateKey) -> Result<Self> {
+    pub fn sign(ctx: &'a Context<'b>, msg: &[u8; 32], seckey: &PrivateKey) -> Result<Self> {
         let mut sig = Self::new(ctx);
         let ret = unsafe {
             secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null())

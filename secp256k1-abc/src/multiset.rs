@@ -2,13 +2,13 @@ use secp256k1_abc_sys::*;
 use super::context::Context;
 use super::{Result, Error};
 
-pub struct MultiSet<'a> {
+pub struct MultiSet<'a, 'b> {
     raw: secp256k1_multiset,
-    ctx: &'a Context,
+    ctx: &'a Context<'b>,
 }
 
-impl<'a> MultiSet<'a> {
-    pub fn new(ctx: &'a Context) -> Result<Self> {
+impl<'a, 'b> MultiSet<'a, 'b> {
+    pub fn new(ctx: &'a Context<'b>) -> Result<Self> {
         let mut multiset = MultiSet {
             raw: secp256k1_multiset {
                 _bindgen_opaque_blob: [0; 96],

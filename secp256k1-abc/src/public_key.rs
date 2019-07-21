@@ -4,14 +4,14 @@ use super::context::Context;
 use super::private_key::PrivateKey;
 use super::{Result, Error, ECFlag};
 
-pub struct PublicKey<'a> {
+pub struct PublicKey<'a, 'b> {
     pub(crate) raw: secp256k1_pubkey,
-    ctx: &'a Context,
+    ctx: &'a Context<'b>,
 }
 
-impl<'a> TryFrom<&PrivateKey<'a>> for PublicKey<'a> {
+impl<'a, 'b> TryFrom<&PrivateKey<'a, 'b>> for PublicKey<'a, 'b> {
     type Error = Error;
-    fn try_from(seckey: &PrivateKey<'a>) -> Result<Self> {
+    fn try_from(seckey: &PrivateKey<'a, 'b>) -> Result<Self> {
         let mut key = Self::new(seckey.ctx);
         let ret = unsafe {
             secp256k1_ec_pubkey_create(seckey.ctx.ctx, &mut key.raw, seckey.raw.as_ptr())
@@ -24,8 +24,8 @@ impl<'a> TryFrom<&PrivateKey<'a>> for PublicKey<'a> {
     }
 }
 
-impl<'a> PublicKey<'a> {
-    pub(crate) fn new(ctx: &'a Context) -> Self {
+impl<'a, 'b> PublicKey<'a, 'b> {
+    pub(crate) fn new(ctx: &'a Context<'b>) -> Self {
         PublicKey {
             raw: secp256k1_pubkey {
                 _bindgen_opaque_blob: [0; 64],
@@ -34,7 +34,7 @@ impl<'a> PublicKey<'a> {
         }
     }
 
-    pub fn parse(ctx: &'a Context, input: &[u8]) -> Result<Self> {
+    pub fn parse(ctx: &'a Context<'b>, input: &[u8]) -> Result<Self> {
         let mut key = Self::new(ctx);
         let ret = unsafe {
             secp256k1_ec_pubkey_parse(ctx.ctx, &mut key.raw, input.as_ptr(), input.len())
@@ -46,7 +46,7 @@ impl<'a> PublicKey<'a> {
         }
     }
 
-    pub fn serialize<'b>(&self, output: &'b mut [u8], flags: ECFlag) -> Result<&'b [u8]> {
+    pub fn serialize<'c>(&self, output: &'c mut [u8], flags: ECFlag) -> Result<&'c [u8]> {
         let mut outputlen = output.len();
         let ret = unsafe {
             secp256k1_ec_pubkey_serialize(self.ctx.ctx, output.as_mut_ptr(), &mut outputlen, &self.raw, flags.bits)
@@ -98,7 +98,7 @@ impl<'a> PublicKey<'a> {
         }
     }
 
-    pub fn combine(ctx: &'a Context, ins: &[PublicKey]) -> Result<Self> {
+    pub fn combine(ctx: &'a Context<'b>, ins: &[PublicKey]) -> Result<Self> {
         let mut key = Self::new(ctx);
         let keys = ins.iter().map(|v| &v.raw as *const _).collect::<Vec<_>>().as_ptr();
         let ret = unsafe {
