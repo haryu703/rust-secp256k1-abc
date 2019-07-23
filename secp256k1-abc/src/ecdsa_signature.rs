@@ -142,24 +142,26 @@ mod test {
     use super::super::ContextFlag;
 
     #[test]
-    fn sign_verify() {
+    fn sign_verify() -> Result<()> {
         let ctx = Context::new(ContextFlag::SIGN | ContextFlag::VERIFY);
         let msg = hex!("4f1379111cc4350a52280fca4f21673ec8db83edaa9be0731fd9fe6aa4d63c5e");
 
         let privkey = PrivateKey::from_array(&ctx, hex!("d7f8f06b9da388bfe1f56c9630090e9f24a48dd1a8d1d5ed059b48117d69f88c"));
-        let pubkey = PublicKey::try_from(&privkey).unwrap();
+        let pubkey = PublicKey::try_from(&privkey)?;
 
-        let sig = ECDSASignature::sign(&ctx, &msg, &privkey).unwrap();
+        let sig = ECDSASignature::sign(&ctx, &msg, &privkey)?;
         assert!(sig.verify(&msg, &pubkey).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn with_custom_nonce() {
+    fn with_custom_nonce() -> Result<()> {
         let ctx = Context::new(ContextFlag::SIGN | ContextFlag::VERIFY);
         let msg = hex!("4f1379111cc4350a52280fca4f21673ec8db83edaa9be0731fd9fe6aa4d63c5e");
 
         let privkey = PrivateKey::from_array(&ctx, hex!("d7f8f06b9da388bfe1f56c9630090e9f24a48dd1a8d1d5ed059b48117d69f88c"));
-        let pubkey = PublicKey::try_from(&privkey).unwrap();
+        let pubkey = PublicKey::try_from(&privkey)?;
 
         let sig = ECDSASignature::sign_with_nonce_closure(
             &ctx,
@@ -178,7 +180,9 @@ mod test {
 
                 1
             },
-        ).unwrap();
+        )?;
         assert!(sig.verify(&msg, &pubkey).is_ok());
+
+        Ok(())
     }
 }

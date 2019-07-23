@@ -27,21 +27,23 @@ mod test {
     use rand::Rng;
 
     #[test]
-    fn test_api() {
+    fn test_api() -> Result<()> {
         let ctx = Context::new(ContextFlag::SIGN);
         let priv1 = PrivateKey::from_array(&ctx, hex!("0000000000000000000000000000000000000000000000000000000000000001"));
-        let pub1 = PublicKey::try_from(&priv1).unwrap();
+        let pub1 = PublicKey::try_from(&priv1)?;
 
         for _ in 0..100 {
             let r = rand::thread_rng().gen();
 
             let priv2 = PrivateKey::from_array(&ctx, r);
-            let pub2 = PublicKey::try_from(&priv2).unwrap();
+            let pub2 = PublicKey::try_from(&priv2)?;
 
-            let ret = ecdh(&ctx, &pub1, &priv2).unwrap();
+            let ret = ecdh(&ctx, &pub1, &priv2)?;
 
-            let ser_pub2 = pub2.serialize_compressed().unwrap();
+            let ser_pub2 = pub2.serialize_compressed()?;
             let sha = Sha256::default().chain(ser_pub2.as_ref()).result();
         }
+
+        Ok(())
     }
 }
