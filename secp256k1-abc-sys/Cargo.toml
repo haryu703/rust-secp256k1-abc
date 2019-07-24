@@ -5,6 +5,12 @@ authors = ["haryu703"]
 edition = "2018"
 build = "build.rs"
 
+license = "MIT"
+description = "Binding of libsecp256k1 of Bitcoin ABC implementation"
+repository = "https://github.com/haryu703/rust-secp256k1-abc"
+readme = "README.md"
+keywords = ["bitcoin", "cash", "BCH", "secp256k1", "crypto", "schnorr"]
+
 [build-dependencies]
 cmake = "0.1.40"
 bindgen = "0.49.2"
