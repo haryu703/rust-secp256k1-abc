@@ -9,7 +9,7 @@ license = "MIT"
 description = "Binding of libsecp256k1 of Bitcoin ABC implementation"
 repository = "https://github.com/haryu703/rust-secp256k1-abc"
 readme = "README.md"
-keywords = ["bitcoin", "cash", "BCH", "secp256k1", "crypto", "schnorr"]
+keywords = ["bitcoin", "cash", "BCH", "secp256k1", "schnorr"]
 
 [build-dependencies]
 cmake = "0.1.40"
