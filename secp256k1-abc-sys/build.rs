@@ -2,25 +2,27 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::env;
 use std::fs;
+use std::os::unix::fs::symlink;
 use cmake;
 use bindgen;
 
-fn download_deps(out_path: &PathBuf, base_url: &str) {
-    Command::new("svn")
-        .arg("export")
-        .arg(format!("{}src/secp256k1", base_url))
-        .arg(out_path.join("cmake/secp256k1"))
-        .arg("--force")
-        .output()
-        .unwrap();
+fn setup_cmake(out_path: &PathBuf) -> std::io::Result<()> {
+    Command::new("./init.sh").output()?;
 
-    Command::new("svn")
-        .arg("export")
-        .arg(format!("{}cmake/modules", base_url))
-        .arg(out_path.join("cmake/modules"))
-        .arg("--force")
-        .output()
-        .unwrap();
+    let cmake_path = out_path.join("cmake");
+
+    if !cmake_path.exists() {
+        fs::create_dir(&cmake_path)?;
+    }
+    if cmake_path.join("secp256k1").read_link().is_err() {
+        symlink(fs::canonicalize("./bitcoin-abc/src/secp256k1/")?, cmake_path.join("secp256k1"))?;
+    }
+    if cmake_path.join("modules").read_link().is_err() {
+        symlink(fs::canonicalize("./bitcoin-abc/cmake/modules/")?, cmake_path.join("modules"))?;
+    }
+    fs::copy("cmake/CMakeLists.txt", cmake_path.join("CMakeLists.txt"))?;
+
+    Ok(())
 }
 
 fn compile_lib(out_path: &PathBuf) {
@@ -62,21 +64,9 @@ fn generate_bindings(out_path: &PathBuf) {
 }
 
 fn main() {
-    const DEFAULT_URL: &'static str = "https://github.com/Bitcoin-ABC/bitcoin-abc/tags/v0.19.6/";
-    let base_url = match env::var("BITCOIN_ABC_REPO_URL") {
-        Ok(ref s) if !s.is_empty() => s.to_string(),
-        _ => DEFAULT_URL.to_string(),
-    };
-
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    if !out_path.join("cmake/secp256k1").exists() || !out_path.join("cmake/modules").exists() {
-        println!("download deps from {} ...", base_url);
-        download_deps(&out_path, &base_url);
-
-        fs::copy("cmake/CMakeLists.txt", out_path.join("cmake/CMakeLists.txt")).unwrap();
-    }
-
+    setup_cmake(&out_path).unwrap();
     compile_lib(&out_path);
 
     generate_bindings(&out_path);
