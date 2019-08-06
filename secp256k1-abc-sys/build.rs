@@ -1,32 +1,10 @@
-use std::process::Command;
 use std::path::PathBuf;
 use std::env;
-use std::fs;
-use std::os::unix::fs::symlink;
 use cmake;
 use bindgen;
 
-fn setup_cmake(out_path: &PathBuf) -> std::io::Result<()> {
-    Command::new("./init.sh").output()?;
-
-    let cmake_path = out_path.join("cmake");
-
-    if !cmake_path.exists() {
-        fs::create_dir(&cmake_path)?;
-    }
-    if cmake_path.join("secp256k1").read_link().is_err() {
-        symlink(fs::canonicalize("./bitcoin-abc/src/secp256k1/")?, cmake_path.join("secp256k1"))?;
-    }
-    if cmake_path.join("modules").read_link().is_err() {
-        symlink(fs::canonicalize("./bitcoin-abc/cmake/modules/")?, cmake_path.join("modules"))?;
-    }
-    fs::copy("cmake/CMakeLists.txt", cmake_path.join("CMakeLists.txt"))?;
-
-    Ok(())
-}
-
-fn compile_lib(out_path: &PathBuf) {
-    let dst = cmake::Config::new(out_path.join("cmake"))
+fn compile_lib() {
+    let dst = cmake::Config::new("cmake")
         .build_target("")
         .define("SECP256K1_BUILD_TEST", "OFF")
         .define("SECP256K1_ENABLE_MODULE_ECDH", "ON")
@@ -46,11 +24,8 @@ fn generate_bindings(out_path: &PathBuf) {
     ];
 
     let bindings = headers.iter()
-        .map(|h| {
-            out_path.join(h).into_os_string().into_string().unwrap()
-        })
         .fold(bindgen::Builder::default(), |b, h| {
-            b.header(h)
+            b.header(h.to_string())
         })
         .opaque_type("secp256k1_context_struct")
         .opaque_type("secp256k1_pubkey")
@@ -66,8 +41,7 @@ fn generate_bindings(out_path: &PathBuf) {
 fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    setup_cmake(&out_path).unwrap();
-    compile_lib(&out_path);
+    compile_lib();
 
     generate_bindings(&out_path);
 }
