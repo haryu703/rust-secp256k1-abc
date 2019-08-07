@@ -1,6 +1,6 @@
 [package]
 name = "secp256k1-abc-sys"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["haryu703"]
 edition = "2018"
 build = "build.rs"
