@@ -1,0 +1,3 @@
+[submodule "secp256k1-abc-sys/bitcoin-abc"]
+	path = secp256k1-abc-sys/bitcoin-abc
+	url = https://github.com/Bitcoin-ABC/bitcoin-abc.git

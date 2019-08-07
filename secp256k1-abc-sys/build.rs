@@ -1,30 +1,10 @@
-use std::process::Command;
 use std::path::PathBuf;
 use std::env;
-use std::fs;
 use cmake;
 use bindgen;
 
-fn download_deps(out_path: &PathBuf, base_url: &str) {
-    Command::new("svn")
-        .arg("export")
-        .arg(format!("{}src/secp256k1", base_url))
-        .arg(out_path.join("cmake/secp256k1"))
-        .arg("--force")
-        .output()
-        .unwrap();
-
-    Command::new("svn")
-        .arg("export")
-        .arg(format!("{}cmake/modules", base_url))
-        .arg(out_path.join("cmake/modules"))
-        .arg("--force")
-        .output()
-        .unwrap();
-}
-
-fn compile_lib(out_path: &PathBuf) {
-    let dst = cmake::Config::new(out_path.join("cmake"))
+fn compile_lib() {
+    let dst = cmake::Config::new("cmake")
         .build_target("")
         .define("SECP256K1_BUILD_TEST", "OFF")
         .define("SECP256K1_ENABLE_MODULE_ECDH", "ON")
@@ -44,11 +24,8 @@ fn generate_bindings(out_path: &PathBuf) {
     ];
 
     let bindings = headers.iter()
-        .map(|h| {
-            out_path.join(h).into_os_string().into_string().unwrap()
-        })
         .fold(bindgen::Builder::default(), |b, h| {
-            b.header(h)
+            b.header(h.to_string())
         })
         .opaque_type("secp256k1_context_struct")
         .opaque_type("secp256k1_pubkey")
@@ -62,22 +39,9 @@ fn generate_bindings(out_path: &PathBuf) {
 }
 
 fn main() {
-    const DEFAULT_URL: &'static str = "https://github.com/Bitcoin-ABC/bitcoin-abc/tags/v0.19.6/";
-    let base_url = match env::var("BITCOIN_ABC_REPO_URL") {
-        Ok(ref s) if !s.is_empty() => s.to_string(),
-        _ => DEFAULT_URL.to_string(),
-    };
-
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    if !out_path.join("cmake/secp256k1").exists() || !out_path.join("cmake/modules").exists() {
-        println!("download deps from {} ...", base_url);
-        download_deps(&out_path, &base_url);
-
-        fs::copy("cmake/CMakeLists.txt", out_path.join("cmake/CMakeLists.txt")).unwrap();
-    }
-
-    compile_lib(&out_path);
+    compile_lib();
 
     generate_bindings(&out_path);
 }
