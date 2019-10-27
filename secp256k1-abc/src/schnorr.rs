@@ -28,7 +28,7 @@ pub fn sign_with_nonce_closure<F>(ctx: &Context, msg: &[u8; 32], seckey: &Privat
             ctx.ctx,
             sig.as_mut_ptr(),
             msg.as_ptr(),
-            seckey.raw.as_ptr(),
+            seckey.key.as_ptr(),
             Some(nonce_function),
             data,
         )
@@ -43,7 +43,7 @@ pub fn sign_with_nonce_closure<F>(ctx: &Context, msg: &[u8; 32], seckey: &Privat
 pub fn sign(ctx: &Context, msg: &[u8; 32], seckey: &PrivateKey) -> Result<[u8; 64]> {
     let mut sig = [0; 64];
     let ret = unsafe {
-        secp256k1_schnorr_sign(ctx.ctx, sig.as_mut_ptr(), msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null())
+        secp256k1_schnorr_sign(ctx.ctx, sig.as_mut_ptr(), msg.as_ptr(), seckey.key.as_ptr(), None, ptr::null())
     };
     if ret == 0 {
         Err(Error::SysError)

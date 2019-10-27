@@ -7,7 +7,7 @@ use super::{Result, Error};
 pub fn ecdh(ctx: &Context, pubkey: &PublicKey, privkey: &PrivateKey) -> Result<[u8; 32]> {
     let mut output = [0; 32];
     let ret = unsafe {
-        secp256k1_ecdh(ctx.ctx, output.as_mut_ptr(), &pubkey.raw, privkey.raw.as_ptr())
+        secp256k1_ecdh(ctx.ctx, output.as_mut_ptr(), &pubkey.raw, privkey.key.as_ptr())
     };
     if ret == 0 {
         Err(Error::SysError)

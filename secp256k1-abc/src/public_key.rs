@@ -14,7 +14,7 @@ impl<'a, 'b> TryFrom<&PrivateKey<'a, 'b>> for PublicKey<'a, 'b> {
     fn try_from(seckey: &PrivateKey<'a, 'b>) -> Result<Self> {
         let mut key = Self::new(seckey.ctx);
         let ret = unsafe {
-            secp256k1_ec_pubkey_create(seckey.ctx.ctx, &mut key.raw, seckey.raw.as_ptr())
+            secp256k1_ec_pubkey_create(seckey.ctx.ctx, &mut key.raw, seckey.key.as_ptr())
         };
         if ret == 0 {
             Err(Error::SysError)

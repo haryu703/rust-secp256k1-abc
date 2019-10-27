@@ -24,7 +24,7 @@ macro_rules! ptr_to_slice {
     };
 }
 
-pub type NonceClosure<'a> = &'a mut FnMut(Option<&mut [u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 16]>, u32) -> i32;
+pub type NonceClosure<'a> = &'a mut dyn FnMut(Option<&mut [u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 32]>, Option<&[u8; 16]>, u32) -> i32;
 
 pub extern "C" fn nonce_function(
     nonce32: *mut c_uchar,

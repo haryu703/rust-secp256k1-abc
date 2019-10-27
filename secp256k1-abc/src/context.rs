@@ -12,7 +12,7 @@ bitflags! {
     }
 }
 
-pub type IllegalClosure<'a> = &'a mut FnMut(std::result::Result<&str, Utf8Error>);
+pub type IllegalClosure<'a> = &'a mut dyn FnMut(std::result::Result<&str, Utf8Error>);
 
 extern "C" fn illegal_callback(message: *const c_char, data: *mut c_void) {
     if data.is_null() {
@@ -26,7 +26,7 @@ extern "C" fn illegal_callback(message: *const c_char, data: *mut c_void) {
     (*closure)(message);
 }
 
-pub type ErrorClosure<'a> = &'a mut FnMut(std::result::Result<&str, Utf8Error>);
+pub type ErrorClosure<'a> = &'a mut dyn FnMut(std::result::Result<&str, Utf8Error>);
 
 extern "C" fn error_callback(message: *const c_char, data: *mut c_void) {
     if data.is_null() {

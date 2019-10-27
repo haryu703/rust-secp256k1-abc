@@ -110,7 +110,7 @@ impl<'a, 'b> ECDSASignature<'a, 'b> {
                 ctx.ctx,
                 &mut sig.raw,
                 msg.as_ptr(),
-                seckey.raw.as_ptr(),
+                seckey.key.as_ptr(),
                 Some(nonce_function),
                 data,
             )
@@ -125,7 +125,7 @@ impl<'a, 'b> ECDSASignature<'a, 'b> {
     pub fn sign(ctx: &'a Context<'b>, msg: &[u8; 32], seckey: &PrivateKey) -> Result<Self> {
         let mut sig = Self::new(ctx);
         let ret = unsafe {
-            secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.raw.as_ptr(), None, ptr::null())
+            secp256k1_ecdsa_sign(ctx.ctx, &mut sig.raw, msg.as_ptr(), seckey.key.as_ptr(), None, ptr::null())
         };
         if ret == 0 {
             Err(Error::SysError)
